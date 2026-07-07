@@ -1,139 +1,55 @@
 <script lang="ts">
   import UnitIcon from './UnitIcon.svelte';
-  import { UNIT_LABELS } from '../unitLabels';
-  import { participatesInBattle } from '../participation';
+  import { UNIT_LABELS, UNIT_DISPLAY_ORDER } from '../unitLabels';
   import { formatCount } from '../format';
-  import { ALL_UNIT_TYPES, UNIT_CATALOG } from '../../engine';
-  import type {
-    AggregatedResult,
-    ArmyComposition,
-    BattleContext,
-    Phase,
-    Side,
-    UnitType,
-  } from '../../engine';
+  import type { Side, UnitLossCounts, UnitType } from '../../engine';
 
   let {
     side,
-    composition,
-    result,
-    context,
+    start,
+    survivors,
+    specialNote,
   }: {
     side: Side;
-    composition: ArmyComposition;
-    result: AggregatedResult;
-    context: BattleContext;
+    start: UnitLossCounts;
+    survivors: UnitLossCounts;
+    specialNote: string | null;
   } = $props();
 
-  const PHASES: Phase[] = ['naval', 'land'];
+  interface ReportRow {
+    type: UnitType;
+    committed: number;
+    remaining: number;
+  }
 
-  const lostByType = $derived.by(() => {
-    const totals: Partial<Record<UnitType, number>> = {};
-    for (const phase of PHASES) {
-      for (const roundRow of result.roundByRoundLosses[phase]) {
-        const losses = side === 'attacker' ? roundRow.attackerLosses : roundRow.defenderLosses;
-        for (const [type, count] of Object.entries(losses) as [UnitType, number][]) {
-          totals[type] = (totals[type] ?? 0) + count;
-        }
-      }
-    }
-    return totals;
-  });
-
-  const committedTypes = $derived(
-    ALL_UNIT_TYPES.filter(
-      (type) =>
-        !UNIT_CATALOG[type].isAAGun &&
-        (composition[type] ?? 0) > 0 &&
-        participatesInBattle(type, context),
-    ),
+  /** Rows follow the Order of Battle listing, not size or fall order. */
+  const rows = $derived(
+    UNIT_DISPLAY_ORDER.filter((type) => (start[type] ?? 0) > 0).map((type): ReportRow => {
+      const committed = start[type] ?? 0;
+      return { type, committed, remaining: Math.max(0, survivors[type] ?? 0) };
+    }),
   );
-
-  /** Survivors, largest remaining force first. */
-  const survivorRows = $derived(
-    committedTypes
-      .map((type) => ({
-        type,
-        // Clamp: float accumulation can land a hair below zero.
-        remaining: Math.max(0, composition[type] - (lostByType[type] ?? 0)),
-      }))
-      .sort((a, b) => b.remaining - a.remaining),
-  );
-
-  /** Casualties, in the order units typically fall (naval phase first). */
-  const casualtyRows = $derived.by(() => {
-    const order: UnitType[] = [];
-    const seen = new Set<UnitType>();
-    for (const phase of PHASES) {
-      for (const entry of result.deathOrder[side][phase]) {
-        if (!seen.has(entry.unitType)) {
-          seen.add(entry.unitType);
-          order.push(entry.unitType);
-        }
-      }
-    }
-    for (const type of committedTypes) {
-      if (!seen.has(type)) {
-        seen.add(type);
-        order.push(type);
-      }
-    }
-    return order
-      .filter((type) => (composition[type] ?? 0) > 0)
-      .map((type) => ({
-        type,
-        committed: composition[type],
-        lost: lostByType[type] ?? 0,
-      }));
-  });
-
-  /** Special-loss footnote: AA fire downs attacker planes; bombardment hits defenders. */
-  const specialNote = $derived.by(() => {
-    const source = side === 'attacker' ? result.aaLosses : result.bombardmentLosses;
-    const parts = (Object.entries(source) as [UnitType, number][])
-      .filter(([, count]) => count >= 0.005)
-      .map(([type, count]) => `${formatCount(count, 2)} ${UNIT_LABELS[type]}`);
-    if (parts.length === 0) return null;
-    return side === 'attacker'
-      ? `incl. ${parts.join(', ')} to AA fire`
-      : `incl. ${parts.join(', ')} to bombardment cover shots`;
-  });
 </script>
 
 <div class="report">
   <h3 class={side}>{side === 'attacker' ? 'Attacker' : 'Defender'}</h3>
 
   <h4>Expected surviving force</h4>
-  {#if survivorRows.length === 0}
+  {#if rows.length === 0}
     <p class="empty">No units committed.</p>
   {:else}
-    <ol class="survivors">
-      {#each survivorRows as row (row.type)}
-        <li>
-          <span class="icon {side}"><UnitIcon type={row.type} size={16} /></span>
-          <span class="name">{UNIT_LABELS[row.type]}</span>
-          <span class="value">{formatCount(row.remaining)}</span>
-        </li>
-      {/each}
-    </ol>
-  {/if}
-
-  <h4>Expected casualties</h4>
-  {#if casualtyRows.length === 0}
-    <p class="empty">No units committed.</p>
-  {:else}
-    <ol class="casualties">
-      {#each casualtyRows as row (row.type)}
+    <ol>
+      {#each rows as row (row.type)}
         <li>
           <span class="icon {side}"><UnitIcon type={row.type} size={16} /></span>
           <span class="name">{UNIT_LABELS[row.type]}</span>
           <span class="bar-track">
             <span
               class="bar-fill {side}"
-              style:width="{Math.min(100, (row.lost / row.committed) * 100)}%"
+              style:width="{Math.min(100, (row.remaining / row.committed) * 100)}%"
             ></span>
           </span>
-          <span class="count">{formatCount(row.lost)} / {row.committed}</span>
+          <span class="count">{formatCount(row.remaining)} / {row.committed}</span>
         </li>
       {/each}
     </ol>
@@ -186,22 +102,7 @@
     gap: 0.4rem;
   }
 
-  .survivors li {
-    display: grid;
-    grid-template-columns: 1.3rem 1fr auto;
-    align-items: center;
-    gap: 0.55rem;
-    font-size: 0.85rem;
-  }
-
-  .survivors .value {
-    font-family: var(--font-mono);
-    font-size: 0.95rem;
-    color: var(--text-primary);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .casualties li {
+  li {
     display: grid;
     grid-template-columns: 1.3rem minmax(6rem, auto) 1fr auto;
     align-items: center;

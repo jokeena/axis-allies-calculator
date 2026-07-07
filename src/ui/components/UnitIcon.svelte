@@ -8,13 +8,17 @@
 
 <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
   {#if type === 'infantry'}
-    <!-- Standing rifleman, rifle slung over the shoulder -->
-    <path d="M10.2 1.1 l.85 -.18 L12.2 6.6 l-.85 .18 z" />
-    <path d="M9 4.9 a3 3 0 0 1 6 0 l.3 .6 h-6.6 z" />
-    <rect x="11" y="5.4" width="2" height="1.6" />
+    <!-- Standing rifleman, rifle at 45° across his chest, muzzle up-right -->
+    <path d="M8.9 4 a2.7 2.7 0 0 1 5.4 0 l.3 .55 h-6 z" />
+    <rect x="10.7" y="4.7" width="1.8" height="1.5" />
+    <path d="M9.2 6.2 h5.6 q.5 0 .5 .5 l-.2 7.5 H8.95 L8.7 6.7 q0 -.5 .5 -.5 z" />
     <path
-      d="M9.3 6.8 h5.4 q.5 0 .5 .5 l-.15 8.2 h-.55 v5.6 l.95 .6 v.9 h-3.1 v-6.2 h-.7 v6.2 h-3.1 v-.9 l.95 -.6 v-5.6 h-.55 L8.8 7.3 q0 -.5 .5 -.5 z"
+      d="M9.05 14.2 h5.9 l-.1 1.4 h-.6 v5.6 l.95 .6 v.9 h-3.1 v-6.2 h-.7 v6.2 h-3.1 v-.9 l.95 -.6 v-5.6 h-.6 z"
     />
+    <!-- Rifle diagonal: stock low-left, barrel high-right -->
+    <path d="M3.5 18.2 l2 -2.5 1.5 1.2 -2 2.5 z" />
+    <path d="M4.5 16.5 L18 3.5 l1 1.05 L5.55 17.55 z" />
+    <path d="M18.3 3.2 l2.5 -2.4 .8 .85 -2.5 2.4 z" />
   {:else if type === 'artillery'}
     <!-- Field howitzer: barrel up-right, solid wheel, trail to the ground -->
     <path d="M9.4 12.9 L19.8 3.2 l1.6 1.7 L11 14.6 z" />
@@ -25,13 +29,13 @@
     <circle cx="14.6" cy="16.8" r="3.9" />
     <rect x="2.2" y="20.4" width="9" height="1.1" />
   {:else if type === 'armor'}
-    <!-- Tank side profile, gun left, running gear with road wheels -->
-    <rect x="1" y="10.5" width="7" height="1.3" />
-    <rect x="1" y="10.1" width="1.6" height="2.1" />
-    <path d="M7.6 8.7 h6.6 l2 2.9 H6.4 z" />
-    <rect x="9.6" y="7.5" width="2.6" height="1.4" rx="0.5" />
-    <path d="M4.6 11.6 h16.8 l-1.4 2.7 H5.4 z" />
-    <rect x="20.4" y="10.7" width="1.7" height="1" />
+    <!-- Tank side profile, gun right, running gear with road wheels -->
+    <rect x="16" y="10.5" width="7" height="1.3" />
+    <rect x="21.4" y="10.1" width="1.6" height="2.1" />
+    <path d="M9.8 8.7 H16.4 L17.6 11.6 H7.8 z" />
+    <rect x="11.8" y="7.5" width="2.6" height="1.4" rx="0.5" />
+    <path d="M2.6 11.6 H19.4 L18.6 14.3 H4 z" />
+    <rect x="1.9" y="10.7" width="1.7" height="1" />
     <path
       fill-rule="evenodd"
       d="M6.2 13.7 H17.8 a2.75 2.75 0 0 1 0 5.5 H6.2 a2.75 2.75 0 0 1 0 -5.5 z
@@ -41,13 +45,12 @@
          M17 15.3 a1.15 1.15 0 1 0 0 2.3 a1.15 1.15 0 1 0 0 -2.3 z"
     />
   {:else if type === 'aaGun'}
-    <!-- Flak gun on a domed mount, barrel high -->
-    <path d="M10.3 15.4 L20.2 4.1 l1.5 1.3 L11.8 16.7 z" />
-    <path d="M19.6 3.3 l1 -.9 1.9 2.1 -1 .9 z" />
-    <path d="M8.2 15.9 l3.4 -3.9 2.6 2.3 -3.4 3.9 z" />
-    <rect x="5.8" y="13.8" width="2.7" height="2.5" />
-    <rect x="10" y="15.6" width="3.4" height="3.6" />
-    <path d="M6 21.7 a6 4.2 0 0 1 12 0 z" />
+    <!-- Flak gun: slim barrel high, heavy central mount on a domed base -->
+    <path d="M12.2 13.5 L20.9 3.4 l1.05 .9 L13.3 14.4 z" />
+    <path d="M20.6 2.7 l.7 -.8 1.35 1.15 -.7 .8 z" />
+    <rect x="7.7" y="12.4" width="7" height="4.8" rx="0.9" />
+    <rect x="9.9" y="17" width="3.6" height="2.2" />
+    <path d="M5.8 21.7 a6.2 4.3 0 0 1 12.4 0 z" />
   {:else if type === 'fighter'}
     <!-- Single-engine fighter from above, nose up, prop spinning -->
     <rect x="11.7" y="0.8" width="0.6" height="2" />
@@ -71,28 +74,28 @@
     <ellipse cx="12" cy="19.4" rx="1.3" ry="1.9" />
     <path d="M8.7 19.3 L11.2 18.2 h1.6 L15.3 19.3 v1.2 L12.8 19.9 h-1.6 L8.7 20.5 z" />
   {:else if type === 'battleship'}
-    <!-- Dreadnought profile: turrets fore and aft, massed superstructure -->
-    <path d="M1.6 15.5 H22.4 L20.6 18.3 H3.6 z" />
-    <rect x="2.6" y="14.8" width="4.6" height="0.9" />
-    <rect x="16.8" y="14.8" width="4.4" height="0.9" />
-    <rect x="5" y="13.7" width="2.6" height="1.3" />
-    <rect x="1.8" y="14" width="3.2" height="0.55" />
-    <rect x="16.2" y="13.7" width="2.6" height="1.3" />
-    <rect x="18.9" y="14" width="3.4" height="0.55" />
-    <rect x="8.2" y="12.8" width="7.4" height="2.2" />
-    <rect x="9.2" y="11" width="3" height="2" />
-    <rect x="9.9" y="9.3" width="1.7" height="1.9" />
-    <circle cx="10.75" cy="9.3" r="0.9" />
-    <path d="M13.2 13.2 v-1.8 l1.7 -.4 v2.2 z" />
-    <rect x="15.1" y="10.4" width="0.5" height="2.6" />
+    <!-- Dreadnought: sleek full-length hull with a pointed bow, raked tower
+         and funnel, twin turrets with long slender guns -->
+    <path d="M0.9 15.3 H21.2 L23.2 16.1 L21.4 18.5 H3.1 z" />
+    <rect x="2.2" y="14.5" width="4.8" height="0.8" />
+    <rect x="15.4" y="14.5" width="4.8" height="0.8" />
+    <path d="M16.2 13.2 h2.8 l.5 1.3 h-3.7 z" />
+    <rect x="19.2" y="13.55" width="3.4" height="0.5" />
+    <path d="M5.1 13.2 h2.8 l.4 1.3 H4.6 z" />
+    <rect x="1.4" y="13.55" width="3.4" height="0.5" />
+    <rect x="8.4" y="12.6" width="7" height="2.6" />
+    <rect x="9.3" y="10.8" width="3.6" height="1.9" />
+    <path d="M10 8.6 h1.9 l.4 2.2 h-2.6 z" />
+    <circle cx="11" cy="8.4" r="0.85" />
+    <path d="M13.4 12.7 v-2.3 l1.8 -.6 v2.9 z" />
+    <rect x="15.3" y="10.2" width="0.5" height="2.4" />
   {:else if type === 'carrier'}
-    <!-- Flat-top: full-length deck over a tapered hull, island amidships -->
-    <path d="M1.2 11.9 H22.8 L20.9 13.8 H3 z" />
-    <path d="M4.4 13.8 H19.6 L17.6 16.9 H6.6 z" />
-    <path d="M9.2 8.3 h5.4 v3.6 H9.2 z" />
-    <rect x="10" y="7.1" width="1" height="1.2" />
-    <rect x="12" y="6.5" width="1" height="1.8" />
-    <rect x="13.7" y="7.3" width="0.8" height="1" />
+    <!-- Flat-top: long thin full-length deck, shallow hull, small island -->
+    <path d="M0.8 12.4 H23.2 L21.6 13.8 H2.4 z" />
+    <path d="M3.6 13.8 H20.4 L18.6 16.1 H5.6 z" />
+    <path d="M13.2 9.5 h3.8 v2.9 h-3.8 z" />
+    <rect x="13.9" y="8.4" width="0.8" height="1.1" />
+    <rect x="15.4" y="7.9" width="0.8" height="1.6" />
   {:else if type === 'destroyer'}
     <!-- Sleek escort: raised bow, forward gun, bridge with mast, raked funnel -->
     <path d="M2.3 16 H21.7 L19.9 18.5 H4.3 z" />
@@ -106,10 +109,10 @@
     <path d="M13.6 15.3 v-2 l1.8 -.35 v2.35 z" />
     <rect x="16" y="14.5" width="2.7" height="0.9" />
   {:else if type === 'submarine'}
-    <!-- Surfaced boat: long low hull, conning tower, periscope -->
-    <path d="M2.7 15.2 H19.2 L22.7 16.9 L18.8 18.8 H3.8 Q2.4 18.8 2.55 16.9 z" />
-    <path d="M9.7 15.2 v-2.5 q0 -.7 .7 -.7 h2 q.7 0 .7 .7 v.5 h1.1 v2 z" />
-    <rect x="10.6" y="10.5" width="0.6" height="1.7" />
+    <!-- Long, slim cigar hull with a tiny hub and periscope -->
+    <path d="M1.2 16.6 Q3.4 15.1 12 15.1 Q20.6 15.1 22.8 16.6 Q20.6 18.1 12 18.1 Q3.4 18.1 1.2 16.6 z" />
+    <rect x="10.9" y="13.2" width="2.4" height="2.2" rx="0.5" />
+    <rect x="11.5" y="11.7" width="0.55" height="1.6" />
   {:else if type === 'transport'}
     <!-- Cargo ship: kingpost derricks in Vs, small midships house -->
     <path d="M2.2 15.9 H21.8 L20.2 18.7 H4 z" />

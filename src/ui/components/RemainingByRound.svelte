@@ -1,42 +1,24 @@
 <script lang="ts">
   import UnitIcon from './UnitIcon.svelte';
   import { UNIT_LABELS } from '../unitLabels';
-  import { participatesInBattle } from '../participation';
   import { formatCount } from '../format';
-  import { ALL_UNIT_TYPES, UNIT_CATALOG } from '../../engine';
-  import type {
-    AggregatedResult,
-    ArmyComposition,
-    BattleContext,
-    Phase,
-    Side,
-  } from '../../engine';
+  import type { ExpectedRound, Side, UnitLossCounts, UnitType } from '../../engine';
 
   let {
     side,
-    phase,
-    composition,
-    result,
-    context,
-    maxRound,
+    types,
+    start,
+    rounds,
+    preBattle,
   }: {
     side: Side;
-    phase: Phase;
-    composition: ArmyComposition;
-    result: AggregatedResult;
-    context: BattleContext;
-    /** Rounds beyond this are trimmed (negligible expected change). */
-    maxRound?: number;
+    types: UnitType[];
+    start: UnitLossCounts;
+    rounds: ExpectedRound[];
+    /** Side-specific pre-battle strike row: AA fire for the attacker,
+     * bombardment cover shots for the defender. */
+    preBattle?: { label: string; counts: UnitLossCounts };
   } = $props();
-
-  const types = $derived(
-    ALL_UNIT_TYPES.filter(
-      (type) =>
-        !UNIT_CATALOG[type].isAAGun &&
-        (composition[type] ?? 0) > 0 &&
-        participatesInBattle(type, context),
-    ),
-  );
 
   interface TableRow {
     label: string;
@@ -44,20 +26,15 @@
   }
 
   const rows = $derived.by((): TableRow[] => {
-    const remaining: Record<string, number> = {};
-    for (const type of types) remaining[type] = composition[type];
-
-    const table: TableRow[] = [{ label: 'Start', values: types.map((t) => remaining[t]) }];
-
-    for (const roundRow of result.roundByRoundLosses[phase]) {
-      if (maxRound !== undefined && roundRow.round > maxRound) break;
-      const losses = side === 'attacker' ? roundRow.attackerLosses : roundRow.defenderLosses;
-      for (const type of types) {
-        remaining[type] -= losses[type] ?? 0;
-      }
+    const table: TableRow[] = [{ label: 'Start', values: types.map((t) => start[t] ?? 0) }];
+    if (preBattle) {
+      table.push({ label: preBattle.label, values: types.map((t) => preBattle.counts[t] ?? 0) });
+    }
+    for (const round of rounds) {
+      const counts = side === 'attacker' ? round.attacker : round.defender;
       table.push({
-        label: roundRow.round === 0 ? 'AA fire' : `Round ${roundRow.round}`,
-        values: types.map((t) => Math.max(0, remaining[t])),
+        label: `Round ${round.round}`,
+        values: types.map((t) => counts[t] ?? 0),
       });
     }
     return table;

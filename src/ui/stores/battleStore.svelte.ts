@@ -1,5 +1,5 @@
 import { emptyArmyComposition } from '../../engine/unitCatalog';
-import type { AggregatedResult, ArmyComposition, PriorityMode } from '../../engine';
+import type { CalculationResult, ArmyComposition, PriorityMode } from '../../engine';
 import { DEFAULT_TRIALS } from '../../engine';
 
 export interface SubmittedForces {
@@ -13,7 +13,7 @@ export interface BattleStore {
   priorityMode: PriorityMode;
   ensureCapture: boolean;
   calculating: boolean;
-  result: AggregatedResult | null;
+  result: CalculationResult | null;
   /** Snapshot of the forces the current result was computed from. */
   forces: SubmittedForces | null;
   /** Whether the current result was computed with Ensure Capture on. */
@@ -34,7 +34,7 @@ export function createBattleStore(): BattleStore {
   let priorityMode = $state<PriorityMode>('militaristic');
   let ensureCapture = $state(false);
   let calculating = $state(false);
-  let result = $state<AggregatedResult | null>(null);
+  let result = $state<CalculationResult | null>(null);
   let forces = $state<SubmittedForces | null>(null);
   let resultEnsureCapture = $state(false);
   let error = $state<string | null>(null);
@@ -58,7 +58,7 @@ export function createBattleStore(): BattleStore {
     resultEnsureCapture = ensureCapture;
 
     const w = getWorker();
-    const handleMessage = (event: MessageEvent<AggregatedResult | { error: string }>): void => {
+    const handleMessage = (event: MessageEvent<CalculationResult | { error: string }>): void => {
       calculating = false;
       if ('error' in event.data) {
         error = event.data.error;

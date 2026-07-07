@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHits, selectForDelayedCasualty } from './casualtyPriority';
+import { applyHits } from './casualtyPriority';
 import { UNIT_CATALOG } from './unitCatalog';
 import type { UnitInstance } from './types';
 
@@ -92,13 +92,3 @@ describe('applyHits', () => {
   });
 });
 
-describe('selectForDelayedCasualty', () => {
-  it('selects without mutating hitsTaken', () => {
-    const infantry = unit('infantry', 'defender');
-    const armor = unit('armor', 'defender');
-    const selected = selectForDelayedCasualty([infantry, armor], 1, UNIT_CATALOG, 'militaristic');
-    expect(selected).toEqual([infantry]);
-    expect(infantry.hitsTaken).toBe(0);
-    expect(armor.hitsTaken).toBe(0);
-  });
-});

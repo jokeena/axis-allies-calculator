@@ -36,13 +36,13 @@ describe('resolveAAFire', () => {
 });
 
 describe('resolveBombardment', () => {
-  it('selects casualties without finalizing them (hitsTaken left untouched)', () => {
+  it('kills its casualties instantly — they are dead before the battle starts', () => {
     const battleship = unit('battleship', 'attacker'); // bombard <=4
     const infantry = unit('infantry', 'defender');
     const rng = createScriptedRng([4]); // battleship bombardment hits
     const result = resolveBombardment([battleship], [infantry], 'militaristic', UNIT_CATALOG, rng);
-    expect(result.condemned).toEqual([infantry]);
-    expect(infantry.hitsTaken).toBe(0); // still alive — finalized later by the caller
+    expect(result.defenderDestroyed).toEqual([infantry]);
+    expect(infantry.hitsTaken).toBe(1); // dead immediately, no chance to fight
   });
 
   it('produces no casualties if no bombardment-capable ship is present or none hit', () => {
@@ -50,6 +50,6 @@ describe('resolveBombardment', () => {
     const infantry = unit('infantry', 'defender');
     const rng = createScriptedRng([]); // carrier can't bombard, so nothing should roll
     const result = resolveBombardment([carrier], [infantry], 'militaristic', UNIT_CATALOG, rng);
-    expect(result.condemned).toEqual([]);
+    expect(result.defenderDestroyed).toEqual([]);
   });
 });

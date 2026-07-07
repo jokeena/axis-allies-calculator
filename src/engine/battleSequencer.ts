@@ -111,11 +111,7 @@ interface PhaseResult {
 /**
  * Runs rounds of `phase` combat until one side (or both) is wiped out, a
  * standoff is detected, or the safety-valve round cap is hit. Pushes a
- * RoundOutcome per round into `rounds`. If `condemnedAfterRound1` is given
- * (amphibious bombardment casualties), those units are force-finalized after
- * round 1 resolves — they still fight that round, but are guaranteed removal
- * afterward; units actually finalized here are also pushed into
- * `bombardmentKills` so the trial can attribute them to cover shots.
+ * RoundOutcome per round into `rounds`.
  */
 function runPhaseRounds(
   attackerUnits: UnitInstance[],
@@ -125,8 +121,6 @@ function runPhaseRounds(
   catalog: Record<UnitType, UnitDefinition>,
   rng: Rng,
   rounds: RoundOutcome[],
-  condemnedAfterRound1: UnitInstance[] = [],
-  bombardmentKills: UnitInstance[] = [],
 ): PhaseResult {
   const protectAttackerLand = phase === 'land' && input.ensureCapture;
   let standoff = false;
@@ -153,24 +147,12 @@ function runPhaseRounds(
       rng,
       protectAttackerLand,
     );
-    const attackerLossUnits = [...result.attackerDestroyed];
-    const defenderLossUnits = [...result.defenderDestroyed];
-
-    if (round === 1 && condemnedAfterRound1.length > 0) {
-      for (const unit of condemnedAfterRound1) {
-        if (isAlive(unit, catalog)) {
-          unit.hitsTaken = catalog[unit.type].hitsToDestroy;
-          defenderLossUnits.push(unit);
-          bombardmentKills.push(unit);
-        }
-      }
-    }
 
     rounds.push({
       phase,
       round,
-      attackerLosses: tally(attackerLossUnits),
-      defenderLosses: tally(defenderLossUnits),
+      attackerLosses: tally(result.attackerDestroyed),
+      defenderLosses: tally(result.defenderDestroyed),
     });
     round++;
   }
@@ -196,7 +178,7 @@ export function runTrial(
   const context = detectBattleContext(input.attacker, input.defender);
   const rounds: RoundOutcome[] = [];
   let aaLosses: UnitLossCounts = {};
-  const bombardmentKills: UnitInstance[] = [];
+  let bombardmentLosses: UnitLossCounts = {};
 
   let outcome: TrialOutcome;
 
@@ -214,37 +196,39 @@ export function runTrial(
     const attackerLand = expandArmy(input.attacker, 'attacker', (d) => d === 'land' || d === 'air', catalog);
     const defenderLand = expandArmy(input.defender, 'defender', (d) => d === 'land' || d === 'air', catalog);
 
+    // Pre-battle strikes: AA fire downs attacking planes, bombardment cover
+    // shots kill defenders — both instant, neither victim ever fights.
     const aa = resolveAAFire(attackerLand, defenderLand, input.priorityMode, catalog, rng);
     if (aa.attackerDestroyed.length > 0) {
       aaLosses = tally(aa.attackerDestroyed);
-      rounds.push({
-        phase: 'land',
-        round: 0,
-        attackerLosses: aaLosses,
-        defenderLosses: {},
-      });
     }
 
-    let condemned: UnitInstance[] = [];
     if (context.bombardmentSupport) {
       const supportShips = expandArmy(input.attacker, 'attacker', (d) => d === 'sea', catalog).filter(
         (u) => catalog[u.type].bombard,
       );
-      condemned = resolveBombardment(supportShips, defenderLand, input.priorityMode, catalog, rng)
-        .condemned;
+      const bombardment = resolveBombardment(
+        supportShips,
+        defenderLand,
+        input.priorityMode,
+        catalog,
+        rng,
+      );
+      if (bombardment.defenderDestroyed.length > 0) {
+        bombardmentLosses = tally(bombardment.defenderDestroyed);
+      }
     }
 
-    const phaseResult = runPhaseRounds(
-      attackerLand,
-      defenderLand,
-      'land',
-      input,
-      catalog,
-      rng,
-      rounds,
-      condemned,
-      bombardmentKills,
-    );
+    if (aa.attackerDestroyed.length > 0 || Object.keys(bombardmentLosses).length > 0) {
+      rounds.push({
+        phase: 'land',
+        round: 0,
+        attackerLosses: aaLosses,
+        defenderLosses: bombardmentLosses,
+      });
+    }
+
+    const phaseResult = runPhaseRounds(attackerLand, defenderLand, 'land', input, catalog, rng, rounds);
 
     outcome = resolvePhaseOutcome(phaseResult);
     if (outcome === 'attackerWins' && input.ensureCapture) {
@@ -257,7 +241,7 @@ export function runTrial(
     }
   }
 
-  return { outcome, rounds, aaLosses, bombardmentLosses: tally(bombardmentKills) };
+  return { outcome, rounds, aaLosses, bombardmentLosses };
 }
 
 function resolvePhaseOutcome(result: PhaseResult): TrialOutcome {

@@ -92,23 +92,3 @@ export function applyHits(
 
   return destroyed;
 }
-
-/**
- * Selects which units would be sacrificed from `hitCount` hits using the
- * same priority-mode ranking as applyHits, but does NOT mutate anything.
- * Used for mechanics where a hit unit still gets to fight one more round
- * before actually being removed (amphibious bombardment support) — the
- * caller is responsible for finalizing the removal after that round.
- */
-export function selectForDelayedCasualty(
-  candidates: UnitInstance[],
-  hitCount: number,
-  catalog: Record<UnitType, UnitDefinition>,
-  mode: PriorityMode,
-): UnitInstance[] {
-  const eligible = candidates.filter(
-    (u) => !catalog[u.type].isAAGun && u.hitsTaken < catalog[u.type].hitsToDestroy,
-  );
-  const sorted = eligible.sort((a, b) => compareForSacrifice(a, b, mode, catalog));
-  return sorted.slice(0, hitCount);
-}

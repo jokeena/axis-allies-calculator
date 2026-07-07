@@ -1,4 +1,4 @@
-import { applyHits, selectForDelayedCasualty } from './casualtyPriority';
+import { applyHits } from './casualtyPriority';
 import type { PriorityMode, UnitDefinition, UnitInstance, UnitType } from './types';
 import type { Rng } from './rng';
 
@@ -42,19 +42,15 @@ export function resolveAAFire(
 }
 
 export interface BombardmentResult {
-  /** Units selected as bombardment casualties — still alive, still fight in
-   * round 1 of the land phase, but are guaranteed removal after that round
-   * (unless round 1's own fire already destroys them first). */
-  condemned: UnitInstance[];
+  defenderDestroyed: UnitInstance[];
 }
 
 /**
- * One-shot amphibious bombardment support: the attacker's surviving
- * battleships (<=4) and destroyers (<=3) each fire once before round 1 of
- * the land battle. Per the rulebook this is a normal casualty selection —
- * the chosen units still fight in round 1 before being removed — so this
- * only *selects* casualties without finalizing their removal; the caller
- * finishes the job after round 1 resolves.
+ * One-shot bombardment cover fire: the attacker's battleships (<=4) and
+ * destroyers (<=3) each fire once before round 1 of the land battle. Like
+ * AA fire, casualties are killed instantly — they never get a chance to
+ * fight in the battle at all. (House rule: the printed rules let these
+ * casualties return fire in round 1.)
  */
 export function resolveBombardment(
   attackerNavalUnits: UnitInstance[],
@@ -70,7 +66,8 @@ export function resolveBombardment(
     if (!bombard) continue;
     if (rng.rollDie() <= bombard.maxRoll) hits++;
   }
-  if (hits === 0) return { condemned: [] };
+  if (hits === 0) return { defenderDestroyed: [] };
 
-  return { condemned: selectForDelayedCasualty(defenderLandForce, hits, catalog, mode) };
+  const candidates = defenderLandForce.filter((u) => isAlive(u, catalog));
+  return { defenderDestroyed: applyHits(candidates, hits, catalog, mode) };
 }

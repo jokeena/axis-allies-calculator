@@ -1,7 +1,9 @@
 <script lang="ts">
   import ArmyInputForm from './ui/components/ArmyInputForm.svelte';
   import PriorityModeSelector from './ui/components/PriorityModeSelector.svelte';
-  import ResultsView from './ui/components/ResultsView.svelte';
+  import ResultsSummary from './ui/components/ResultsSummary.svelte';
+  import IpcLossSummary from './ui/components/IpcLossSummary.svelte';
+  import ForceReport from './ui/components/ForceReport.svelte';
   import { createBattleStore } from './ui/stores/battleStore.svelte';
   import { DEFAULT_TRIALS } from './engine';
 
@@ -48,9 +50,25 @@
   </section>
 
   {#if store.result && store.forces}
-    <section class="panel results-panel">
+    <section class="panel">
       <p class="panel-title">02 &middot; Projection</p>
-      <ResultsView result={store.result} forces={store.forces} ensureCapture={store.resultEnsureCapture} />
+      <ResultsSummary
+        attackerWinPct={store.result.simulation.attackerWinPct}
+        defenderWinPct={store.result.simulation.defenderWinPct}
+        tiePct={store.result.simulation.tiePct}
+        standoffPct={store.result.simulation.standoffPct}
+        clearedNotCapturedPct={store.result.simulation.clearedNotCapturedPct}
+        ensureCapture={store.resultEnsureCapture}
+      />
+      <IpcLossSummary
+        attacker={store.result.simulation.totalIpcLoss.attacker}
+        defender={store.result.simulation.totalIpcLoss.defender}
+      />
+    </section>
+
+    <section class="panel">
+      <p class="panel-title">03 &middot; Force report</p>
+      <ForceReport expected={store.result.expected} forces={store.forces} />
     </section>
   {/if}
 

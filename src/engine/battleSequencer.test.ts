@@ -38,21 +38,23 @@ describe('runTrial — battleship takes two hits to sink', () => {
 });
 
 describe('runTrial — land battles with ships present', () => {
-  it('runs a land battle with bombardment support when the attacker brings warships', () => {
+  it('bombardment cover shots kill instantly, before the battle begins', () => {
     const battleInput = input({ armor: 1, battleship: 1 }, { infantry: 1 });
-    const rng = createScriptedRng([
-      4, // bombardment: battleship rolls <=4, condemns the infantry
-      6, // land round 1: armor attack misses naturally
-      6, // land round 1: infantry defense misses naturally
-    ]);
+    // A single roll: the battleship's cover shot hits and kills the only
+    // defender outright — the battle is over before round 1, and the victim
+    // never fires. Scripted length 1 proves no combat dice were rolled.
+    const rng = createScriptedRng([4]);
     const result = runTrial(battleInput, UNIT_CATALOG, rng);
 
-    expect(result.rounds.every((r) => r.phase === 'land')).toBe(true);
     expect(result.outcome).toBe('attackerWins');
-    // The infantry loss is attributed to round 1 even though neither side's
-    // own dice hit anything that round — it was already condemned by the
-    // bombardment support shot before round 1 began.
-    expect(result.rounds[0].defenderLosses.infantry).toBe(1);
+    expect(result.rounds).toHaveLength(1);
+    expect(result.rounds[0]).toEqual({
+      phase: 'land',
+      round: 0,
+      attackerLosses: {},
+      defenderLosses: { infantry: 1 },
+    });
+    expect(result.bombardmentLosses.infantry).toBe(1);
   });
 
   it("the defender's ships sit out of a land battle entirely and cannot die", () => {
@@ -73,14 +75,10 @@ describe('runTrial — land battles with ships present', () => {
 
   it('only bombardment-capable attacker ships fire cover shots; the rest sit out', () => {
     // Battleship bombards; the transport has no cover-shot ability and no
-    // land-battle role at all. Script length proves exactly one bombardment
-    // die was rolled.
+    // land-battle role at all. Script length 1 proves exactly one
+    // bombardment die was rolled and nothing else fired.
     const battleInput = input({ infantry: 1, battleship: 1, transport: 1 }, { infantry: 1 });
-    const rng = createScriptedRng([
-      4, // battleship bombardment hits, condemning the defender's infantry
-      6, // round 1: attacker infantry misses
-      6, // round 1: defender infantry misses (then finalized by bombardment)
-    ]);
+    const rng = createScriptedRng([4]); // battleship cover shot kills the defender instantly
     const result = runTrial(battleInput, UNIT_CATALOG, rng);
 
     expect(result.outcome).toBe('attackerWins');
@@ -180,14 +178,28 @@ describe('runTrial — special-loss attribution', () => {
     expect(result.outcome).toBe('attackerWins');
   });
 
-  it('attributes bombardment cover-shot kills to bombardmentLosses', () => {
-    const battleInput = input({ armor: 1, battleship: 1 }, { infantry: 1 });
+  it('records a combined pre-battle row when both AA fire and bombardment hit', () => {
+    const battleInput = input(
+      { infantry: 1, fighter: 1, battleship: 1 },
+      { infantry: 2, aaGun: 1 },
+    );
     const rng = createScriptedRng([
-      4, // bombardment hits, condemning the infantry
-      6, 6, // round 1: armor misses, infantry misses — infantry finalized anyway
+      1, // AA fire downs the fighter
+      4, // bombardment kills one defending infantry
+      6, // round 1: attacker infantry misses
+      6, // round 1: remaining defender infantry misses
+      1, // round 2: attacker infantry hits
+      6, // round 2: defender infantry misses
     ]);
     const result = runTrial(battleInput, UNIT_CATALOG, rng);
 
+    expect(result.rounds[0]).toEqual({
+      phase: 'land',
+      round: 0,
+      attackerLosses: { fighter: 1 },
+      defenderLosses: { infantry: 1 },
+    });
+    expect(result.aaLosses.fighter).toBe(1);
     expect(result.bombardmentLosses.infantry).toBe(1);
     expect(result.outcome).toBe('attackerWins');
   });
