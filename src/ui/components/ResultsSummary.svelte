@@ -3,16 +3,29 @@
     attackerWinPct,
     defenderWinPct,
     tiePct,
-  }: { attackerWinPct: number; defenderWinPct: number; tiePct: number } = $props();
+    standoffPct,
+    clearedNotCapturedPct,
+    ensureCapture,
+  }: {
+    attackerWinPct: number;
+    defenderWinPct: number;
+    tiePct: number;
+    standoffPct: number;
+    clearedNotCapturedPct: number;
+    ensureCapture: boolean;
+  } = $props();
 
   function fmt(pct: number): string {
     return `${pct.toFixed(1)}%`;
   }
+
+  const showStandoff = $derived(standoffPct > 0.05);
+  const showCleared = $derived(clearedNotCapturedPct > 0.05);
 </script>
 
 <div class="tiles">
   <div class="tile attacker">
-    <span class="label">Attacker wins</span>
+    <span class="label">{ensureCapture ? 'Attacker captures' : 'Attacker wins'}</span>
     <span class="value">{fmt(attackerWinPct)}</span>
   </div>
   <div class="tile defender">
@@ -23,13 +36,48 @@
     <span class="label">Mutual annihilation</span>
     <span class="value">{fmt(tiePct)}</span>
   </div>
+  {#if showStandoff}
+    <div class="tile standoff">
+      <span class="label">Standoff</span>
+      <span class="value">{fmt(standoffPct)}</span>
+    </div>
+  {/if}
+  {#if showCleared}
+    <div class="tile cleared">
+      <span class="label">Cleared, not captured</span>
+      <span class="value">{fmt(clearedNotCapturedPct)}</span>
+    </div>
+  {/if}
 </div>
 
-<div class="bar" role="img" aria-label="Attacker {fmt(attackerWinPct)}, defender {fmt(defenderWinPct)}, tie {fmt(tiePct)}">
+<div
+  class="bar"
+  role="img"
+  aria-label="Attacker {fmt(attackerWinPct)}, defender {fmt(defenderWinPct)}, tie {fmt(tiePct)}, standoff {fmt(standoffPct)}, cleared not captured {fmt(clearedNotCapturedPct)}"
+>
   <span class="segment attacker" style:width="{attackerWinPct}%"></span>
   <span class="segment defender" style:width="{defenderWinPct}%"></span>
   <span class="segment tie" style:width="{tiePct}%"></span>
+  {#if showStandoff}
+    <span class="segment standoff" style:width="{standoffPct}%"></span>
+  {/if}
+  {#if showCleared}
+    <span class="segment cleared" style:width="{clearedNotCapturedPct}%"></span>
+  {/if}
 </div>
+
+{#if showStandoff}
+  <p class="footnote">
+    Standoff: both sides survive but can no longer hit each other (e.g. aircraft vs. submarines
+    with no destroyer present).
+  </p>
+{/if}
+{#if showCleared}
+  <p class="footnote">
+    Cleared, not captured: the defender was destroyed, but only aircraft survived &mdash; planes
+    cannot claim territory.
+  </p>
+{/if}
 
 <style>
   .tiles {
@@ -58,6 +106,14 @@
 
   .tile.tie {
     border-left-color: var(--neutral);
+  }
+
+  .tile.standoff {
+    border-left-color: var(--axis);
+  }
+
+  .tile.cleared {
+    border-left-color: var(--brass);
   }
 
   .label {
@@ -102,5 +158,21 @@
 
   .segment.tie {
     background: var(--neutral);
+  }
+
+  .segment.standoff {
+    background: var(--axis);
+  }
+
+  .segment.cleared {
+    background: var(--brass);
+  }
+
+  .footnote {
+    margin: 0.5rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
   }
 </style>

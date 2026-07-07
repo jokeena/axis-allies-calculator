@@ -20,11 +20,24 @@
     <ArmyInputForm attacker={store.attacker} defender={store.defender} />
 
     <div class="controls">
-      <PriorityModeSelector bind:mode={store.priorityMode} />
+      <div class="doctrine">
+        <PriorityModeSelector bind:mode={store.priorityMode} />
+        <label class="ensure-capture" class:active={store.ensureCapture}>
+          <input type="checkbox" bind:checked={store.ensureCapture} />
+          <span>
+            <strong>Ensure capture</strong>
+            <small>
+              sacrifice aircraft before your last land unit &mdash; only battles won with a land
+              unit standing count as captures
+            </small>
+          </span>
+        </label>
+      </div>
       <div class="launch">
         <button class="calculate" onclick={store.runCalculation} disabled={store.calculating}>
           {store.calculating ? 'Simulating…' : 'Calculate'}
         </button>
+        <button class="reset" onclick={store.reset} disabled={store.calculating}>Reset</button>
         <p class="note">Odds from {trialsLabel} simulated battles.</p>
       </div>
     </div>
@@ -37,7 +50,7 @@
   {#if store.result && store.forces}
     <section class="panel results-panel">
       <p class="panel-title">02 &middot; Projection</p>
-      <ResultsView result={store.result} forces={store.forces} />
+      <ResultsView result={store.result} forces={store.forces} ensureCapture={store.resultEnsureCapture} />
     </section>
   {/if}
 
@@ -101,11 +114,75 @@
     }
   }
 
+  .doctrine {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .ensure-capture {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    background: var(--surface-2);
+    border: 1px solid var(--gridline);
+    border-left: 2px solid transparent;
+  }
+
+  .ensure-capture.active {
+    border-left-color: var(--brass);
+    background: rgba(201, 162, 39, 0.06);
+  }
+
+  .ensure-capture input {
+    margin-top: 0.25rem;
+    accent-color: var(--brass);
+  }
+
+  .ensure-capture strong {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+  }
+
+  .ensure-capture small {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+
   .launch {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .reset {
+    width: 100%;
+    padding: 0.5rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    border: 1px solid var(--gridline);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .reset:hover:not(:disabled) {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+  }
+
+  .reset:disabled {
+    opacity: 0.5;
+    cursor: wait;
   }
 
   .calculate {

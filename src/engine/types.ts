@@ -53,16 +53,23 @@ export interface BattleInput {
   defender: ArmyComposition;
   priorityMode: PriorityMode;
   trialCount: number;
+  /**
+   * Only a surviving land unit can claim a territory. When set, the
+   * attacker sacrifices aircraft before its last land unit, and a battle
+   * that clears the defender with only attacker aircraft left counts as
+   * `clearedNotCaptured` instead of a win.
+   */
+  ensureCapture: boolean;
 }
 
-export type BattleType = 'land' | 'naval' | 'amphibious';
+export type BattleType = 'land' | 'naval';
 
 export interface BattleContext {
   type: BattleType;
-  /** Whether a naval phase should be resolved before any land phase. */
-  navalPhaseOccurs: boolean;
-  /** Set when defender naval units are present but won't participate (no attacker navy to engage them). */
-  strandedDefenderNavyNote?: string;
+  /** Attacker battleships/destroyers fire one-shot cover support (land battles only). */
+  bombardmentSupport: boolean;
+  /** Explanatory note when entered units sit the battle out. */
+  note?: string;
 }
 
 export type Phase = 'naval' | 'land';
@@ -76,11 +83,27 @@ export interface RoundOutcome {
   defenderLosses: UnitLossCounts;
 }
 
-export type TrialOutcome = 'attackerWins' | 'defenderWins' | 'tie';
+/**
+ * - `tie`: mutual annihilation — both sides fully destroyed.
+ * - `standoff`: both sides alive but neither can ever hit the other
+ *   (e.g. aircraft vs. submarines with no destroyer present).
+ * - `clearedNotCaptured`: defender destroyed, but the attacker has only
+ *   aircraft left, which cannot claim territory (Ensure Capture mode only).
+ */
+export type TrialOutcome =
+  | 'attackerWins'
+  | 'defenderWins'
+  | 'tie'
+  | 'standoff'
+  | 'clearedNotCaptured';
 
 export interface TrialResult {
   outcome: TrialOutcome;
   rounds: RoundOutcome[];
+  /** Attacker aircraft downed by pre-battle AA fire. */
+  aaLosses: UnitLossCounts;
+  /** Defender units destroyed by amphibious bombardment cover shots. */
+  bombardmentLosses: UnitLossCounts;
 }
 
 export interface DeathOrderEntry {
@@ -99,9 +122,15 @@ export interface AggregatedResult {
   attackerWinPct: number;
   defenderWinPct: number;
   tiePct: number;
+  standoffPct: number;
+  clearedNotCapturedPct: number;
   deathOrder: Record<Side, Record<Phase, DeathOrderEntry[]>>;
   roundByRoundLosses: Record<Phase, RoundLossRow[]>;
   totalIpcLoss: { attacker: number; defender: number };
+  /** Expected attacker aircraft downed by AA fire, per unit type. */
+  aaLosses: UnitLossCounts;
+  /** Expected defender units destroyed by bombardment cover shots, per unit type. */
+  bombardmentLosses: UnitLossCounts;
 }
 
 /** A single unit instance tracked during one simulated trial. */

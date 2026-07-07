@@ -1,52 +1,46 @@
-import type { ArmyComposition, BattleContext, Domain } from './types';
+import type { ArmyComposition, BattleContext } from './types';
 import { UNIT_CATALOG } from './unitCatalog';
+import { ALL_UNIT_TYPES } from './types';
 
-function hasDomain(army: ArmyComposition, domain: Domain): boolean {
-  return (Object.keys(army) as Array<keyof ArmyComposition>).some(
-    (type) => UNIT_CATALOG[type].domain === domain && army[type] > 0,
-  );
+/** Only these can capture territory, and only they make a fight a land battle. */
+function hasLandTroops(army: ArmyComposition): boolean {
+  return army.infantry > 0 || army.artillery > 0 || army.armor > 0;
+}
+
+function hasSeaUnits(army: ArmyComposition): boolean {
+  return ALL_UNIT_TYPES.some((type) => UNIT_CATALOG[type].domain === 'sea' && army[type] > 0);
 }
 
 /**
- * Infers what kind of battle this is purely from what's been entered —
- * there's no manual "amphibious assault" toggle in the UI.
+ * A battle is never land and sea at once:
  *
- * - No sea units on either side: pure land battle.
- * - Attacker has both land and sea units: amphibious assault. A naval phase
- *   only actually runs if the defender also has naval units to contest the
- *   zone — otherwise the sea is already clear and the attacker's ships go
- *   straight to bombardment support.
- * - Attacker has land units but no navy, while the defender has naval units:
- *   this is a pure land invasion from an adjacent territory — the defender's
- *   naval units aren't part of this fight at all (nothing is attacking them).
- * - Otherwise (attacker has no land units): a naval battle between whatever
- *   sea/air forces are present; the defender's land units and AA gun sit out
- *   since there's no invasion for them to defend against.
+ * - Land troops (infantry/artillery/armor) on either side make it a LAND
+ *   battle. Ships never fight or die in a land battle — the attacker's
+ *   battleships and destroyers contribute one-shot bombardment cover fire,
+ *   and every other ship simply sits out.
+ * - With no land troops anywhere, ships and planes fight a SEA battle.
+ * - No land troops and no ships (planes vs. planes, or planes vs. an AA
+ *   gun) resolves with land-battle mechanics.
  */
 export function detectBattleContext(
   attacker: ArmyComposition,
   defender: ArmyComposition,
 ): BattleContext {
-  const attackerHasNavy = hasDomain(attacker, 'sea');
-  const attackerHasLand = hasDomain(attacker, 'land');
-  const defenderHasNavy = hasDomain(defender, 'sea');
-
-  if (!attackerHasNavy && !defenderHasNavy) {
-    return { type: 'land', navalPhaseOccurs: false };
-  }
-
-  if (attackerHasNavy && attackerHasLand) {
-    return { type: 'amphibious', navalPhaseOccurs: defenderHasNavy };
-  }
-
-  if (!attackerHasNavy && attackerHasLand && defenderHasNavy) {
+  if (hasLandTroops(attacker) || hasLandTroops(defender)) {
+    const bombardmentSupport = attacker.battleship > 0 || attacker.destroyer > 0;
+    const shipsPresent = hasSeaUnits(attacker) || hasSeaUnits(defender);
     return {
       type: 'land',
-      navalPhaseOccurs: false,
-      strandedDefenderNavyNote:
-        "Defender naval units won't participate — the attacker has no ships to trigger a naval engagement.",
+      bombardmentSupport,
+      note: shipsPresent
+        ? 'With land troops involved this is a land battle — ships cannot be lost. Attacker battleships and destroyers fire one-time cover shots; all other ships sit out.'
+        : undefined,
     };
   }
 
-  return { type: 'naval', navalPhaseOccurs: true };
+  if (hasSeaUnits(attacker) || hasSeaUnits(defender)) {
+    return { type: 'naval', bombardmentSupport: false };
+  }
+
+  return { type: 'land', bombardmentSupport: false };
 }

@@ -42,13 +42,22 @@ export function aggregate(
   let attackerWins = 0;
   let defenderWins = 0;
   let ties = 0;
+  let standoffs = 0;
+  let clearedNotCaptured = 0;
+  const aaTotals: SideLossMap = {};
+  const bombardmentTotals: SideLossMap = {};
 
   const buckets: Record<Phase, Map<number, RoundBucket>> = { naval: new Map(), land: new Map() };
 
   for (const trial of trials) {
     if (trial.outcome === 'attackerWins') attackerWins++;
     else if (trial.outcome === 'defenderWins') defenderWins++;
+    else if (trial.outcome === 'standoff') standoffs++;
+    else if (trial.outcome === 'clearedNotCaptured') clearedNotCaptured++;
     else ties++;
+
+    addCounts(aaTotals, trial.aaLosses);
+    addCounts(bombardmentTotals, trial.bombardmentLosses);
 
     for (const roundOutcome of trial.rounds) {
       const phaseBuckets = buckets[roundOutcome.phase];
@@ -128,13 +137,25 @@ export function aggregate(
     totalIpcLoss[side] = total / trialsRun;
   }
 
+  const perTrialAverage = (totals: SideLossMap): UnitLossCounts => {
+    const averaged: UnitLossCounts = {};
+    for (const [type, count] of Object.entries(totals) as [UnitType, number][]) {
+      averaged[type] = count / trialsRun;
+    }
+    return averaged;
+  };
+
   return {
     trialsRun,
     attackerWinPct: (attackerWins / trialsRun) * 100,
     defenderWinPct: (defenderWins / trialsRun) * 100,
     tiePct: (ties / trialsRun) * 100,
+    standoffPct: (standoffs / trialsRun) * 100,
+    clearedNotCapturedPct: (clearedNotCaptured / trialsRun) * 100,
     deathOrder,
     roundByRoundLosses,
     totalIpcLoss,
+    aaLosses: perTrialAverage(aaTotals),
+    bombardmentLosses: perTrialAverage(bombardmentTotals),
   };
 }

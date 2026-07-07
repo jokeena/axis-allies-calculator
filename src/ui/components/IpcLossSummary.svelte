@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { formatCount } from '../format';
+
   let { attacker, defender }: { attacker: number; defender: number } = $props();
 </script>
 
 <div class="ipc-summary">
-  <span class="entry"><span class="dot attacker"></span>Attacker IPC lost: <strong>{attacker.toFixed(1)}</strong></span>
-  <span class="entry"><span class="dot defender"></span>Defender IPC lost: <strong>{defender.toFixed(1)}</strong></span>
+  <span class="entry"><span class="dot attacker"></span>Attacker IPC lost: <strong>{formatCount(attacker)}</strong></span>
+  <span class="entry"><span class="dot defender"></span>Defender IPC lost: <strong>{formatCount(defender)}</strong></span>
 </div>
 
 <style>

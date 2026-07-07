@@ -12,20 +12,26 @@ const trials: TrialResult[] = [
       { phase: 'land', round: 1, attackerLosses: {}, defenderLosses: { infantry: 2 } },
       { phase: 'land', round: 2, attackerLosses: {}, defenderLosses: { infantry: 1 } },
     ],
+    aaLosses: {},
+    bombardmentLosses: {},
   },
   {
     outcome: 'defenderWins',
     rounds: [
       { phase: 'land', round: 1, attackerLosses: { infantry: 1 }, defenderLosses: { infantry: 1 } },
     ],
+    aaLosses: {},
+    bombardmentLosses: {},
   },
   {
     outcome: 'tie',
     rounds: [
       { phase: 'land', round: 1, attackerLosses: { infantry: 3 }, defenderLosses: { infantry: 3 } },
     ],
+    aaLosses: {},
+    bombardmentLosses: {},
   },
-  { outcome: 'attackerWins', rounds: [] },
+  { outcome: 'attackerWins', rounds: [], aaLosses: {}, bombardmentLosses: {} },
 ];
 
 describe('aggregate', () => {
@@ -66,5 +72,45 @@ describe('aggregate', () => {
     // infantry costs 3 IPC; attacker lost 1.0 expected infantry, defender 1.75.
     expect(result.totalIpcLoss.attacker).toBeCloseTo(3 * 1.0);
     expect(result.totalIpcLoss.defender).toBeCloseTo(3 * 1.75);
+  });
+
+  it('reports zero standoff/cleared percentages and empty special losses when none occurred', () => {
+    expect(result.standoffPct).toBe(0);
+    expect(result.clearedNotCapturedPct).toBe(0);
+    expect(result.aaLosses).toEqual({});
+    expect(result.bombardmentLosses).toEqual({});
+  });
+});
+
+describe('aggregate — standoff, cleared-not-captured, and special-loss attribution', () => {
+  const trials: TrialResult[] = [
+    { outcome: 'standoff', rounds: [], aaLosses: {}, bombardmentLosses: {} },
+    {
+      outcome: 'clearedNotCaptured',
+      rounds: [{ phase: 'land', round: 0, attackerLosses: { fighter: 1 }, defenderLosses: {} }],
+      aaLosses: { fighter: 1 },
+      bombardmentLosses: {},
+    },
+    {
+      outcome: 'attackerWins',
+      rounds: [{ phase: 'land', round: 1, attackerLosses: {}, defenderLosses: { infantry: 1 } }],
+      aaLosses: {},
+      bombardmentLosses: { infantry: 1 },
+    },
+    { outcome: 'defenderWins', rounds: [], aaLosses: {}, bombardmentLosses: {} },
+  ];
+  const result = aggregate(trials, UNIT_CATALOG);
+
+  it('tallies all five outcome categories to 100%', () => {
+    expect(result.standoffPct).toBe(25);
+    expect(result.clearedNotCapturedPct).toBe(25);
+    expect(result.attackerWinPct).toBe(25);
+    expect(result.defenderWinPct).toBe(25);
+    expect(result.tiePct).toBe(0);
+  });
+
+  it('averages AA and bombardment losses per trial', () => {
+    expect(result.aaLosses.fighter).toBeCloseTo(0.25); // 1 fighter across 4 trials
+    expect(result.bombardmentLosses.infantry).toBeCloseTo(0.25);
   });
 });

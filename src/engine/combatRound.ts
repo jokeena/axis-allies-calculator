@@ -28,6 +28,7 @@ export function resolveRound(
   mode: PriorityMode,
   catalog: Record<UnitType, UnitDefinition>,
   rng: Rng,
+  protectAttackerLand = false,
 ): RoundResult {
   const attackerDestroyed: UnitInstance[] = [];
   const defenderDestroyed: UnitInstance[] = [];
@@ -143,7 +144,7 @@ export function resolveRound(
       if (excludeSub && u.type === 'submarine') return false;
       return true;
     });
-    attackerDestroyed.push(...applyHits(candidates, count, catalog, mode));
+    attackerDestroyed.push(...applyHits(candidates, count, catalog, mode, protectAttackerLand));
   };
   applyDefenderBatch(defenderSubHits, true, false);
   applyDefenderBatch(defenderAirHits, false, !defenderHasDestroyer);

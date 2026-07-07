@@ -8,35 +8,43 @@ function composition(overrides: Partial<ArmyComposition>): ArmyComposition {
 }
 
 describe('detectBattleContext', () => {
-  it('is a land battle when neither side has naval units', () => {
-    const ctx = detectBattleContext(composition({ armor: 1 }), composition({ infantry: 1 }));
-    expect(ctx).toEqual({ type: 'land', navalPhaseOccurs: false });
+  it('land troops on either side make it a land battle', () => {
+    expect(detectBattleContext(composition({ armor: 1 }), composition({ infantry: 1 })).type).toBe('land');
+    // Defender-only land troops still force a land battle (air raid on a garrison).
+    expect(detectBattleContext(composition({ fighter: 1 }), composition({ infantry: 1 })).type).toBe('land');
   });
 
-  it('is amphibious when the attacker has both land and naval units', () => {
+  it('a land battle with attacker warships enables bombardment support and notes that ships sit out', () => {
     const ctx = detectBattleContext(
-      composition({ armor: 1, transport: 1 }),
+      composition({ armor: 1, transport: 1, battleship: 1 }),
       composition({ infantry: 1, destroyer: 1 }),
     );
-    expect(ctx.type).toBe('amphibious');
-    expect(ctx.navalPhaseOccurs).toBe(true); // defender has a navy to contest the zone
-  });
-
-  it('is amphibious with no naval phase when the defender has no navy to contest', () => {
-    const ctx = detectBattleContext(composition({ armor: 1, transport: 1 }), composition({ infantry: 1 }));
-    expect(ctx.type).toBe('amphibious');
-    expect(ctx.navalPhaseOccurs).toBe(false);
-  });
-
-  it('treats a land invasion with a stray defender navy as a land battle, flagging the note', () => {
-    const ctx = detectBattleContext(composition({ armor: 1 }), composition({ infantry: 1, destroyer: 1 }));
     expect(ctx.type).toBe('land');
-    expect(ctx.navalPhaseOccurs).toBe(false);
-    expect(ctx.strandedDefenderNavyNote).toBeTruthy();
+    expect(ctx.bombardmentSupport).toBe(true);
+    expect(ctx.note).toBeTruthy();
   });
 
-  it('is a naval battle when the attacker has no land units', () => {
-    const ctx = detectBattleContext(composition({ destroyer: 1 }), composition({ submarine: 1 }));
-    expect(ctx).toEqual({ type: 'naval', navalPhaseOccurs: true });
+  it('a land battle with only non-bombarding ships still notes them but grants no support', () => {
+    const ctx = detectBattleContext(composition({ armor: 1, transport: 1 }), composition({ infantry: 1 }));
+    expect(ctx.type).toBe('land');
+    expect(ctx.bombardmentSupport).toBe(false);
+    expect(ctx.note).toBeTruthy();
+  });
+
+  it('a pure land battle carries no note', () => {
+    const ctx = detectBattleContext(composition({ armor: 1 }), composition({ infantry: 1 }));
+    expect(ctx.bombardmentSupport).toBe(false);
+    expect(ctx.note).toBeUndefined();
+  });
+
+  it('no land troops anywhere means a sea battle', () => {
+    expect(detectBattleContext(composition({ destroyer: 1 }), composition({ submarine: 1 })).type).toBe('naval');
+    expect(detectBattleContext(composition({ fighter: 1 }), composition({ submarine: 1 })).type).toBe('naval');
+  });
+
+  it('planes-only fights fall back to land-battle mechanics', () => {
+    const ctx = detectBattleContext(composition({ fighter: 1 }), composition({ fighter: 1 }));
+    expect(ctx.type).toBe('land');
+    expect(ctx.note).toBeUndefined();
   });
 });

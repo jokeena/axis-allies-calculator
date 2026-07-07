@@ -48,6 +48,7 @@ export function applyHits(
   hitCount: number,
   catalog: Record<UnitType, UnitDefinition>,
   mode: PriorityMode,
+  protectLastLand = false,
 ): UnitInstance[] {
   const eligible = candidates.filter((u) => !catalog[u.type].isAAGun);
   let remaining = hitCount;
@@ -67,6 +68,18 @@ export function applyHits(
   const pool = eligible
     .filter((u) => u.hitsTaken < catalog[u.type].hitsToDestroy)
     .sort((a, b) => compareForSacrifice(a, b, mode, catalog));
+
+  // Ensure Capture: only a land unit can claim territory, so the land unit
+  // the doctrine already keeps longest is moved to the very back of the
+  // sacrifice queue — aircraft die before the last land unit does.
+  if (protectLastLand) {
+    for (let i = pool.length - 1; i >= 0; i--) {
+      if (catalog[pool[i].type].domain === 'land') {
+        pool.push(...pool.splice(i, 1));
+        break;
+      }
+    }
+  }
 
   for (const unit of pool) {
     if (remaining <= 0) break;

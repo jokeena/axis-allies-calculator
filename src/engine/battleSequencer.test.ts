@@ -11,12 +11,14 @@ function composition(overrides: Partial<ArmyComposition>): ArmyComposition {
 function input(
   attacker: Partial<ArmyComposition>,
   defender: Partial<ArmyComposition>,
+  ensureCapture = false,
 ): BattleInput {
   return {
     attacker: composition(attacker),
     defender: composition(defender),
     priorityMode: 'militaristic',
     trialCount: 1,
+    ensureCapture,
   };
 }
 
@@ -35,23 +37,8 @@ describe('runTrial — battleship takes two hits to sink', () => {
   });
 });
 
-describe('runTrial — amphibious assault sea-zone-clear rule', () => {
-  it('fails the invasion (defenderWins, no land phase) if the defender still holds the sea zone', () => {
-    // Attacker: an armor unit escorted by a transport (attack 0 — can never
-    // hurt the defending destroyer). Defender: a destroyer that will sink
-    // the transport outright, leaving the sea zone contested.
-    const battleInput = input({ armor: 1, transport: 1 }, { destroyer: 1, infantry: 1 });
-    const rng = createScriptedRng([3]); // defender destroyer's defense roll, <=3, hits the transport
-    const result = runTrial(battleInput, UNIT_CATALOG, rng);
-
-    expect(result.outcome).toBe('defenderWins');
-    expect(result.rounds.every((r) => r.phase === 'naval')).toBe(true);
-    expect(result.rounds).toHaveLength(1);
-  });
-
-  it('proceeds straight to the land phase (with bombardment) when the defender has no navy', () => {
-    // Attacker: armor + a bombarding battleship. Defender: infantry only,
-    // no navy — so the naval phase never runs at all.
+describe('runTrial — land battles with ships present', () => {
+  it('runs a land battle with bombardment support when the attacker brings warships', () => {
     const battleInput = input({ armor: 1, battleship: 1 }, { infantry: 1 });
     const rng = createScriptedRng([
       4, // bombardment: battleship rolls <=4, condemns the infantry
@@ -67,6 +54,43 @@ describe('runTrial — amphibious assault sea-zone-clear rule', () => {
     // bombardment support shot before round 1 began.
     expect(result.rounds[0].defenderLosses.infantry).toBe(1);
   });
+
+  it("the defender's ships sit out of a land battle entirely and cannot die", () => {
+    // With land troops involved this is a land battle — the defending
+    // destroyer never fights, never rolls, and never appears in losses.
+    const battleInput = input({ armor: 1 }, { infantry: 1, destroyer: 1 });
+    // Exactly two rolls: armor attack (hit) and infantry defense (miss). A
+    // scripted RNG of length 2 proves the destroyer never rolled.
+    const rng = createScriptedRng([1, 6]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('attackerWins');
+    expect(result.rounds.every((r) => r.phase === 'land')).toBe(true);
+    for (const round of result.rounds) {
+      expect(round.defenderLosses.destroyer).toBeUndefined();
+    }
+  });
+
+  it('only bombardment-capable attacker ships fire cover shots; the rest sit out', () => {
+    // Battleship bombards; the transport has no cover-shot ability and no
+    // land-battle role at all. Script length proves exactly one bombardment
+    // die was rolled.
+    const battleInput = input({ infantry: 1, battleship: 1, transport: 1 }, { infantry: 1 });
+    const rng = createScriptedRng([
+      4, // battleship bombardment hits, condemning the defender's infantry
+      6, // round 1: attacker infantry misses
+      6, // round 1: defender infantry misses (then finalized by bombardment)
+    ]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('attackerWins');
+    expect(result.bombardmentLosses.infantry).toBe(1);
+    // No attacker ship can be lost in a land battle.
+    for (const round of result.rounds) {
+      expect(round.attackerLosses.battleship).toBeUndefined();
+      expect(round.attackerLosses.transport).toBeUndefined();
+    }
+  });
 });
 
 describe('runTrial — a lone surviving AA gun cannot hold off the attacker', () => {
@@ -80,5 +104,91 @@ describe('runTrial — a lone surviving AA gun cannot hold off the attacker', ()
 
     expect(result.outcome).toBe('attackerWins');
     expect(result.rounds).toHaveLength(1);
+  });
+});
+
+describe('runTrial — standoff when neither side can ever hit the other', () => {
+  it('fighter vs. submarine (no destroyer) ends immediately as a standoff, both alive', () => {
+    const battleInput = input({ fighter: 1 }, { submarine: 1 });
+    const rng = createScriptedRng([]); // no dice at all — the battle never starts
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('standoff');
+    expect(result.rounds).toHaveLength(0);
+  });
+
+  it('is not a standoff once a destroyer joins the fighters', () => {
+    const battleInput = input({ fighter: 1, destroyer: 1 }, { submarine: 1 });
+    // destroyer attack hits (<=3); fighter also fires; sub defense misses.
+    const rng = createScriptedRng([6, 3, 6]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('attackerWins');
+  });
+});
+
+describe('runTrial — Ensure Capture mode', () => {
+  it('sacrifices aircraft before the last land unit', () => {
+    // Militaristic mode would normally sacrifice the infantry (attack 1)
+    // before the fighter (attack 3) — Ensure Capture overrides that for the
+    // final land unit.
+    const battleInput = input({ infantry: 1, fighter: 1 }, { artillery: 1 }, true);
+    const rng = createScriptedRng([
+      6, 6, 1, // round 1: infantry misses, fighter misses, artillery hits
+      1, 6, //    round 2: infantry hits, artillery misses back
+    ]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.rounds[0].attackerLosses.fighter).toBe(1); // fighter died, not infantry
+    expect(result.rounds[0].attackerLosses.infantry).toBeUndefined();
+    expect(result.outcome).toBe('attackerWins');
+  });
+
+  it('scores clearing the defender with only aircraft as clearedNotCaptured', () => {
+    const battleInput = input({ fighter: 1 }, { infantry: 1 }, true);
+    const rng = createScriptedRng([1, 6]); // fighter hits, infantry misses
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('clearedNotCaptured');
+  });
+
+  it('the same air-only sweep counts as a normal win when Ensure Capture is off', () => {
+    const battleInput = input({ fighter: 1 }, { infantry: 1 }, false);
+    const rng = createScriptedRng([1, 6]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('attackerWins');
+  });
+});
+
+describe('runTrial — special-loss attribution', () => {
+  it('attributes AA-fire kills to aaLosses', () => {
+    const battleInput = input({ fighter: 2, armor: 1 }, { infantry: 1, aaGun: 1 });
+    const rng = createScriptedRng([
+      1, 5, // AA fire: first fighter shot down, second survives
+      1, 6, 6, // round 1: armor hits, surviving fighter misses, infantry misses
+    ]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.aaLosses.fighter).toBe(1);
+    expect(result.rounds[0]).toEqual({
+      phase: 'land',
+      round: 0,
+      attackerLosses: { fighter: 1 },
+      defenderLosses: {},
+    });
+    expect(result.outcome).toBe('attackerWins');
+  });
+
+  it('attributes bombardment cover-shot kills to bombardmentLosses', () => {
+    const battleInput = input({ armor: 1, battleship: 1 }, { infantry: 1 });
+    const rng = createScriptedRng([
+      4, // bombardment hits, condemning the infantry
+      6, 6, // round 1: armor misses, infantry misses — infantry finalized anyway
+    ]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.bombardmentLosses.infantry).toBe(1);
+    expect(result.outcome).toBe('attackerWins');
   });
 });
