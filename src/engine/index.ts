@@ -27,4 +27,20 @@ export { UNIT_CATALOG, emptyArmyComposition } from './unitCatalog';
 export { detectBattleContext } from './battleDetection';
 export { runExpectedBattle } from './expectedBattle';
 export type { ExpectedBattleResult, ExpectedRound } from './expectedBattle';
+export { runAdvisor, advisorCandidates } from './advisor';
+export type { AdvisorRow } from './advisor';
+export {
+  runAmphibiousCalculation,
+  runExpectedAmphibious,
+  amphibiousValidationErrors,
+  transportsNeeded,
+  buildBoatManifest,
+} from './amphibiousBattle';
+export type {
+  AmphibiousInput,
+  AmphibiousResult,
+  AmphibiousSimulation,
+  AmphibiousExpected,
+  AmphibiousStage,
+} from './amphibiousBattle';
 export { DEFAULT_TRIALS, ROUND_CAP } from './constants';

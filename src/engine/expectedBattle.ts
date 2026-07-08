@@ -48,43 +48,47 @@ type Catalog = Record<UnitType, UnitDefinition>;
 /** A fractional destroyer below this counts as absent for the sub/air rules. */
 const PRESENCE_EPSILON = 0.01;
 /** A side whose total force drops below this is considered destroyed. */
-const ELIMINATION_EPSILON = 0.05;
+export const ELIMINATION_EPSILON = 0.05;
 /** Combined losses per round below this = the grind has effectively stopped. */
 const STALL_EPSILON = 0.005;
 const MAX_ROUNDS = 200;
 
-interface Force {
+export interface Force {
   types: UnitType[];
   counts: Record<string, number>;
   /** Damaged-but-alive battleships (they fight at full strength). */
   battleshipDamaged: number;
 }
 
-function makeForce(
+export function makeForce(
   composition: UnitLossCounts,
   domains: Array<'land' | 'air' | 'sea'>,
   catalog: Catalog,
+  excludeTypes: UnitType[] = [],
 ): Force {
   const types = ALL_UNIT_TYPES.filter(
     (t) =>
-      !catalog[t].isAAGun && domains.includes(catalog[t].domain) && (composition[t] ?? 0) > 0,
+      !catalog[t].isAAGun &&
+      !excludeTypes.includes(t) &&
+      domains.includes(catalog[t].domain) &&
+      (composition[t] ?? 0) > 0,
   );
   const counts: Record<string, number> = {};
   for (const t of types) counts[t] = composition[t] ?? 0;
   return { types, counts, battleshipDamaged: 0 };
 }
 
-function totalUnits(force: Force): number {
+export function totalUnits(force: Force): number {
   return force.types.reduce((sum, t) => sum + force.counts[t], 0);
 }
 
-function snapshot(force: Force): UnitLossCounts {
+export function snapshot(force: Force): UnitLossCounts {
   const out: UnitLossCounts = {};
   for (const t of force.types) out[t] = Math.max(0, force.counts[t]);
   return out;
 }
 
-function sacrificeOrder(
+export function sacrificeOrder(
   side: Side,
   types: UnitType[],
   mode: PriorityMode,
@@ -105,6 +109,9 @@ interface HitOptions {
   excludeSub?: boolean;
   onlyAir?: boolean;
   protectLastLand?: boolean;
+  /** Reserve `amount` of `type` for last — sacrificed only once every other
+   * eligible type is exhausted (e.g. preserved transports). */
+  reserve?: { type: UnitType; amount: number };
 }
 
 /**
@@ -113,7 +120,7 @@ interface HitOptions {
  * battleships soak hits first, Ensure Capture reserves one land unit for
  * the very end of the queue, and domain restrictions are honored.
  */
-function applyExpectedHits(
+export function applyExpectedHits(
   force: Force,
   hits: number,
   order: UnitType[],
@@ -153,6 +160,9 @@ function applyExpectedHits(
         break;
       }
     }
+  } else if (opts.reserve && opts.reserve.amount > 0 && force.counts[opts.reserve.type] !== undefined) {
+    reserveType = opts.reserve.type;
+    reserveAmount = Math.min(opts.reserve.amount, force.counts[opts.reserve.type]);
   }
 
   const drain = (t: UnitType, available: number, hitCostPerUnit: number): void => {
@@ -228,7 +238,8 @@ export function runExpectedBattle(input: BattleInput, catalog: Catalog): Expecte
   const domains: Array<'land' | 'air' | 'sea'> =
     phase === 'naval' ? ['sea', 'air'] : ['land', 'air'];
   const attacker = makeForce(input.attacker, domains, catalog);
-  const defender = makeForce(input.defender, domains, catalog);
+  // Defending bombers never fight at sea.
+  const defender = makeForce(input.defender, domains, catalog, phase === 'naval' ? ['bomber'] : []);
 
   const attackerOrder = sacrificeOrder('attacker', attacker.types, input.priorityMode, catalog);
   const defenderOrder = sacrificeOrder('defender', defender.types, input.priorityMode, catalog);
@@ -266,6 +277,33 @@ export function runExpectedBattle(input: BattleInput, catalog: Catalog): Expecte
     applyExpectedHits(defender, bombardmentPool, defenderOrder, catalog, result.bombardmentLosses, {});
   }
 
+  runExpectedCombat(attacker, defender, phase, input.priorityMode, protectLand, catalog, result.rounds);
+
+  result.attackerSurvivors = snapshot(attacker);
+  result.defenderSurvivors = snapshot(defender);
+  return result;
+}
+
+/**
+ * Runs the expected-value combat rounds between two forces until one side
+ * is spent, the grind stalls (standoff), or the round cap is hit. Mutates
+ * both forces and appends an ExpectedRound snapshot per round.
+ */
+export function runExpectedCombat(
+  attacker: Force,
+  defender: Force,
+  phase: Phase,
+  mode: PriorityMode,
+  protectAttackerLand: boolean,
+  catalog: Catalog,
+  rounds: ExpectedRound[],
+  /** Naval phase only: a unit type/amount on the attacker's side that's
+   * sacrificed last (e.g. preserved transports). */
+  attackerReserve?: { type: UnitType; amount: number },
+): void {
+  const attackerOrder = sacrificeOrder('attacker', attacker.types, mode, catalog);
+  const defenderOrder = sacrificeOrder('defender', defender.types, mode, catalog);
+
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     if (totalUnits(attacker) < ELIMINATION_EPSILON || totalUnits(defender) < ELIMINATION_EPSILON) {
       break;
@@ -299,11 +337,15 @@ export function runExpectedBattle(input: BattleInput, catalog: Catalog): Expecte
 
       applyExpectedHits(attacker, defenderPools.sub, attackerOrder, catalog, attackerLosses, {
         excludeAir: true,
+        reserve: attackerReserve,
       });
       applyExpectedHits(attacker, defenderPools.air, attackerOrder, catalog, attackerLosses, {
         excludeSub: !defenderHasDestroyer,
+        reserve: attackerReserve,
       });
-      applyExpectedHits(attacker, defenderPools.other, attackerOrder, catalog, attackerLosses, {});
+      applyExpectedHits(attacker, defenderPools.other, attackerOrder, catalog, attackerLosses, {
+        reserve: attackerReserve,
+      });
     } else {
       applyExpectedHits(
         defender,
@@ -319,17 +361,13 @@ export function runExpectedBattle(input: BattleInput, catalog: Catalog): Expecte
         attackerOrder,
         catalog,
         attackerLosses,
-        { protectLastLand: protectLand },
+        { protectLastLand: protectAttackerLand },
       );
     }
 
     // Standoff / stalled grind: nothing meaningful is changing anymore.
     if (sumCounts(attackerLosses) + sumCounts(defenderLosses) < STALL_EPSILON) break;
 
-    result.rounds.push({ round, attacker: snapshot(attacker), defender: snapshot(defender) });
+    rounds.push({ round, attacker: snapshot(attacker), defender: snapshot(defender) });
   }
-
-  result.attackerSurvivors = snapshot(attacker);
-  result.defenderSurvivors = snapshot(defender);
-  return result;
 }

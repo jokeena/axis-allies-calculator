@@ -65,9 +65,16 @@ export function applyHits(
 
   if (remaining <= 0) return destroyed;
 
-  const pool = eligible
+  let pool = eligible
     .filter((u) => u.hitsTaken < catalog[u.type].hitsToDestroy)
     .sort((a, b) => compareForSacrifice(a, b, mode, catalog));
+
+  // Explicitly protected units (e.g. preserved transports) move to the very
+  // back of the queue — sacrificed only once nothing else is available.
+  const explicitlyProtected = pool.filter((u) => u.protected);
+  if (explicitlyProtected.length > 0) {
+    pool = [...pool.filter((u) => !u.protected), ...explicitlyProtected];
+  }
 
   // Ensure Capture: only a land unit can claim territory, so the land unit
   // the doctrine already keeps longest is moved to the very back of the

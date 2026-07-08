@@ -80,6 +80,34 @@ describe('applyHits', () => {
     expect(destroyed).toEqual([battleship]);
   });
 
+  it('protected units are sacrificed only after everything else is gone', () => {
+    const freeTransport = unit('transport', 'attacker');
+    const preservedTransport = { ...unit('transport', 'attacker'), protected: true };
+    const destroyer = unit('destroyer', 'attacker');
+
+    // One hit: the free transport (attack 0, lowest value) dies first even
+    // though it's not marked protected — same as today's default ordering.
+    const firstHit = applyHits(
+      [freeTransport, preservedTransport, destroyer],
+      1,
+      UNIT_CATALOG,
+      'militaristic',
+    );
+    expect(firstHit).toEqual([freeTransport]);
+    expect(preservedTransport.hitsTaken).toBe(0);
+    expect(destroyer.hitsTaken).toBe(0);
+
+    // A second hit lands on the destroyer (higher value than the transport,
+    // but the preserved transport is pushed to the very back of the queue).
+    const secondHit = applyHits([preservedTransport, destroyer], 1, UNIT_CATALOG, 'militaristic');
+    expect(secondHit).toEqual([destroyer]);
+    expect(preservedTransport.hitsTaken).toBe(0);
+
+    // Only once nothing else is left does the preserved transport take a hit.
+    const thirdHit = applyHits([preservedTransport], 1, UNIT_CATALOG, 'militaristic');
+    expect(thirdHit).toEqual([preservedTransport]);
+  });
+
   it('spreads multiple hits across multiple undamaged battleships before hitting anything else', () => {
     const battleshipA = unit('battleship', 'defender');
     const battleshipB = unit('battleship', 'defender');

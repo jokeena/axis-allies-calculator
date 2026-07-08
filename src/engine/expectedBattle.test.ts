@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runExpectedBattle } from './expectedBattle';
+import { applyExpectedHits, makeForce, runExpectedBattle } from './expectedBattle';
 import { emptyArmyComposition, UNIT_CATALOG } from './unitCatalog';
 import type { ArmyComposition, BattleInput } from './types';
 
@@ -104,5 +104,32 @@ describe('runExpectedBattle — deterministic attrition in sacrifice order', () 
     expect(result.rounds).toHaveLength(0);
     expect(result.attackerSurvivors.fighter).toBeCloseTo(1, 4);
     expect(result.defenderSurvivors.submarine).toBeCloseTo(1, 4);
+  });
+});
+
+describe('applyExpectedHits — reserve option (preserved transports)', () => {
+  it('protects the reserved amount until every other eligible type is drained', () => {
+    const force = makeForce({ transport: 2, destroyer: 1 }, ['sea'], UNIT_CATALOG);
+    const kills = {};
+    // 1.5 hits: the 1 free transport (2 - 1 reserved) fully absorbs 1 hit,
+    // the remaining 0.5 spills onto the destroyer — the reserved transport
+    // is untouched.
+    applyExpectedHits(force, 1.5, ['transport', 'destroyer'], UNIT_CATALOG, kills, {
+      reserve: { type: 'transport', amount: 1 },
+    });
+    expect(force.counts.transport).toBeCloseTo(1, 4);
+    expect(force.counts.destroyer).toBeCloseTo(0.5, 4);
+  });
+
+  it('spills into the reserved amount once everything else is exhausted', () => {
+    const force = makeForce({ transport: 2, destroyer: 1 }, ['sea'], UNIT_CATALOG);
+    const kills = {};
+    // 3 hits: 1 free transport + 1 destroyer = 2 hits consumed first, the
+    // last hit finally reaches the reserved transport.
+    applyExpectedHits(force, 3, ['transport', 'destroyer'], UNIT_CATALOG, kills, {
+      reserve: { type: 'transport', amount: 1 },
+    });
+    expect(force.counts.transport).toBeCloseTo(0, 4);
+    expect(force.counts.destroyer).toBeCloseTo(0, 4);
   });
 });

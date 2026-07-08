@@ -8,6 +8,7 @@ import type {
   BattleInput,
   Domain,
   Phase,
+  PriorityMode,
   RoundOutcome,
   Side,
   TrialOutcome,
@@ -30,7 +31,10 @@ function isAlive(unit: UnitInstance, catalog: Record<UnitType, UnitDefinition>):
  * or fight back on their own — without this exclusion, a defender reduced to
  * "AA gun only" would stall combat forever instead of losing.
  */
-function hasFightingUnits(units: UnitInstance[], catalog: Record<UnitType, UnitDefinition>): boolean {
+export function hasFightingUnits(
+  units: UnitInstance[],
+  catalog: Record<UnitType, UnitDefinition>,
+): boolean {
   return units.some((u) => isAlive(u, catalog) && !catalog[u.type].isAAGun);
 }
 
@@ -101,7 +105,7 @@ function expandArmy(
   return units;
 }
 
-interface PhaseResult {
+export interface PhaseResult {
   attackerSurvived: boolean;
   defenderSurvived: boolean;
   /** True when the phase ended because neither side could ever hit the other. */
@@ -113,16 +117,16 @@ interface PhaseResult {
  * standoff is detected, or the safety-valve round cap is hit. Pushes a
  * RoundOutcome per round into `rounds`.
  */
-function runPhaseRounds(
+export function runPhaseRounds(
   attackerUnits: UnitInstance[],
   defenderUnits: UnitInstance[],
   phase: Phase,
-  input: BattleInput,
+  mode: PriorityMode,
+  protectAttackerLand: boolean,
   catalog: Record<UnitType, UnitDefinition>,
   rng: Rng,
   rounds: RoundOutcome[],
 ): PhaseResult {
-  const protectAttackerLand = phase === 'land' && input.ensureCapture;
   let standoff = false;
   let round = 1;
   while (round <= ROUND_CAP) {
@@ -142,7 +146,7 @@ function runPhaseRounds(
       attackerUnits,
       defenderUnits,
       phase,
-      input.priorityMode,
+      mode,
       catalog,
       rng,
       protectAttackerLand,
@@ -184,10 +188,23 @@ export function runTrial(
 
   if (context.type === 'naval') {
     // Pure sea battle: ships and planes on both sides fight it out. Land
-    // units and AA guns (there are no land troops by definition here) sit out.
+    // units and AA guns (there are no land troops by definition here) sit
+    // out — and defending bombers never fight at sea (fighters may, being
+    // carrier-capable; bombers can only ATTACK into a sea zone).
     const attackerNaval = expandArmy(input.attacker, 'attacker', (d) => d === 'sea' || d === 'air', catalog);
-    const defenderNaval = expandArmy(input.defender, 'defender', (d) => d === 'sea' || d === 'air', catalog);
-    const phaseResult = runPhaseRounds(attackerNaval, defenderNaval, 'naval', input, catalog, rng, rounds);
+    const defenderNaval = expandArmy(input.defender, 'defender', (d) => d === 'sea' || d === 'air', catalog).filter(
+      (u) => u.type !== 'bomber',
+    );
+    const phaseResult = runPhaseRounds(
+      attackerNaval,
+      defenderNaval,
+      'naval',
+      input.priorityMode,
+      false,
+      catalog,
+      rng,
+      rounds,
+    );
     outcome = resolvePhaseOutcome(phaseResult);
   } else {
     // Land battle: land troops and aircraft fight. Ships never fight or die
@@ -228,7 +245,16 @@ export function runTrial(
       });
     }
 
-    const phaseResult = runPhaseRounds(attackerLand, defenderLand, 'land', input, catalog, rng, rounds);
+    const phaseResult = runPhaseRounds(
+      attackerLand,
+      defenderLand,
+      'land',
+      input.priorityMode,
+      input.ensureCapture,
+      catalog,
+      rng,
+      rounds,
+    );
 
     outcome = resolvePhaseOutcome(phaseResult);
     if (outcome === 'attackerWins' && input.ensureCapture) {
@@ -244,7 +270,7 @@ export function runTrial(
   return { outcome, rounds, aaLosses, bombardmentLosses };
 }
 
-function resolvePhaseOutcome(result: PhaseResult): TrialOutcome {
+export function resolvePhaseOutcome(result: PhaseResult): TrialOutcome {
   if (result.attackerSurvived && result.defenderSurvived) {
     return result.standoff ? 'standoff' : 'tie';
   }

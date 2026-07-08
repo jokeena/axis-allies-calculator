@@ -105,6 +105,21 @@ describe('runTrial — a lone surviving AA gun cannot hold off the attacker', ()
   });
 });
 
+describe('runTrial — defending bombers never fight at sea', () => {
+  it('excludes defender bombers from naval battles entirely', () => {
+    const battleInput = input({ destroyer: 1 }, { bomber: 1, transport: 1 });
+    // Round 1: destroyer attack hits, transport defense misses — the bomber
+    // never rolls (scripted length 2 proves it) and never takes a hit.
+    // With the transport sunk, the defender has no naval combatants left.
+    const rng = createScriptedRng([3, 6]);
+    const result = runTrial(battleInput, UNIT_CATALOG, rng);
+
+    expect(result.outcome).toBe('attackerWins');
+    expect(result.rounds).toHaveLength(1);
+    expect(result.rounds[0].defenderLosses.bomber).toBeUndefined();
+  });
+});
+
 describe('runTrial — standoff when neither side can ever hit the other', () => {
   it('fighter vs. submarine (no destroyer) ends immediately as a standoff, both alive', () => {
     const battleInput = input({ fighter: 1 }, { submarine: 1 });

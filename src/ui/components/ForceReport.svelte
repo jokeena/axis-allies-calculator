@@ -1,7 +1,7 @@
 <script lang="ts">
   import ArmyReport from './ArmyReport.svelte';
   import RemainingByRound from './RemainingByRound.svelte';
-  import { UNIT_LABELS, UNIT_DISPLAY_ORDER } from '../unitLabels';
+  import { UNIT_DISPLAY_ORDER, unitLabel } from '../unitLabels';
   import { formatCount } from '../format';
   import { detectBattleContext } from '../../engine';
   import type { ExpectedBattleResult, ExpectedRound, UnitLossCounts, UnitType } from '../../engine';
@@ -21,7 +21,7 @@
   function specialNote(source: UnitLossCounts, prefix: string): string | null {
     const parts = (Object.entries(source) as [UnitType, number][])
       .filter(([, count]) => count >= 0.005)
-      .map(([type, count]) => `${formatCount(count, 2)} ${UNIT_LABELS[type]}`);
+      .map(([type, count]) => `${formatCount(count, 2)} ${unitLabel(type, count, 2)}`);
     return parts.length > 0 ? `${prefix} ${parts.join(', ')}` : null;
   }
 

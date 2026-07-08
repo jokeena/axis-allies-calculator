@@ -6,6 +6,7 @@
     standoffPct,
     clearedNotCapturedPct,
     ensureCapture,
+    seaControlledPct = null,
   }: {
     attackerWinPct: number;
     defenderWinPct: number;
@@ -13,6 +14,8 @@
     standoffPct: number;
     clearedNotCapturedPct: number;
     ensureCapture: boolean;
+    /** Amphibious battles only: % of trials where the sea zone was secured. */
+    seaControlledPct?: number | null;
   } = $props();
 
   function fmt(pct: number): string {
@@ -24,6 +27,12 @@
 </script>
 
 <div class="tiles">
+  {#if seaControlledPct !== null}
+    <div class="tile sea">
+      <span class="label">Sea zone secured</span>
+      <span class="value">{fmt(seaControlledPct)}</span>
+    </div>
+  {/if}
   <div class="tile attacker">
     <span class="label">{ensureCapture ? 'Attacker captures' : 'Attacker wins'}</span>
     <span class="value">{fmt(attackerWinPct)}</span>
@@ -113,6 +122,10 @@
   }
 
   .tile.cleared {
+    border-left-color: var(--brass);
+  }
+
+  .tile.sea {
     border-left-color: var(--brass);
   }
 

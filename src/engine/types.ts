@@ -140,4 +140,6 @@ export interface UnitInstance {
   side: Side;
   domain: Domain;
   hitsTaken: number;
+  /** Sacrificed only once nothing else is available (e.g. preserved transports). */
+  protected?: boolean;
 }

@@ -39,7 +39,14 @@ export function detectBattleContext(
   }
 
   if (hasSeaUnits(attacker) || hasSeaUnits(defender)) {
-    return { type: 'naval', bombardmentSupport: false };
+    return {
+      type: 'naval',
+      bombardmentSupport: false,
+      note:
+        defender.bomber > 0
+          ? 'Defending bombers cannot fight in a sea battle — they sit this one out.'
+          : undefined,
+    };
   }
 
   return { type: 'land', bombardmentSupport: false };

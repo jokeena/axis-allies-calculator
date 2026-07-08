@@ -49,7 +49,7 @@
               style:width="{Math.min(100, (row.remaining / row.committed) * 100)}%"
             ></span>
           </span>
-          <span class="count">{formatCount(row.remaining)} / {row.committed}</span>
+          <span class="count">{formatCount(row.remaining, 2)} / {formatCount(row.committed, 2)}</span>
         </li>
       {/each}
     </ol>
