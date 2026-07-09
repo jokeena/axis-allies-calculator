@@ -1,28 +1,15 @@
-# Axis & Allies Combat Calculator
+# jokeena.github.io
 
-A combat-odds calculator for Axis & Allies (Europe edition). Enter troop
-counts for an attacker and a defender — land, air, sea, and AA guns — and it
-runs a Monte Carlo simulation (naval battle, amphibious bombardment, and land
-battle, auto-detected from what's entered) to report:
+Personal site for John Keena, live at [jokeena.github.io](https://jokeena.github.io).
 
-- Win / lose / tie percentages
-- The expected order in which unit types are lost
-- Round-by-round expected losses
-- Total IPC value of expected losses
+A single static page (`index.html`, no build step) that links to my projects:
 
-Live at **https://jokeena.github.io/axis-allies-calculator/**
+- [Axis & Allies Combat Calculator](https://jokeena.github.io/axis-allies-calculator/) ([source](https://github.com/jokeena/axis-allies-calculator))
+- [Cribbage Board](https://jokeena.github.io/cribbage-board/) ([source](https://github.com/jokeena/cribbage-board))
+- [Clarke Solitaire](https://jokeena.github.io/clarke-solitaire/) ([source](https://github.com/jokeena/clarke-solitaire))
 
-## Development
+Deployed to GitHub Pages via Actions on every push to `main`.
 
-```bash
-npm install
-npm run dev      # start the dev server
-npm test         # run the engine test suite (Vitest)
-npm run check    # type-check (tsc + svelte-check)
-npm run build    # production build to dist/
-```
-
-Combat rules are modeled from the official Axis & Allies Europe rulebook
-(`axis-allies-rules-europe.pdf`, kept at the repo root for reference).
-
-Deploys automatically to GitHub Pages via GitHub Actions on push to `main`.
+> The previous contents of this repo — the original Svelte version of the
+> Axis & Allies calculator — live on in git history and were superseded by
+> the [axis-allies-calculator](https://github.com/jokeena/axis-allies-calculator) repo.
